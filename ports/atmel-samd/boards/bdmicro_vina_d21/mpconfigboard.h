@@ -33,3 +33,9 @@
 // USB is always used internally so skip the pin objects for it.
 #define IGNORE_PIN_PA24 1
 #define IGNORE_PIN_PA25 1
+
+// Pins not used by pins.c or SPI flash.
+#define IGNORE_PIN_PA00 1
+#define IGNORE_PIN_PA01 1
+#define IGNORE_PIN_PA03 1
+#define IGNORE_PIN_PA30 1
