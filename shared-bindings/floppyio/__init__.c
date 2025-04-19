@@ -40,6 +40,7 @@
 //|     """
 //|     ...
 //|
+//|
 static mp_obj_t floppyio_flux_readinto(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     #if CIRCUITPY_DIGITALIO
     enum { ARG_buffer, ARG_data, ARG_index, ARG_index_wait };
@@ -102,7 +103,7 @@ MP_DEFINE_CONST_FUN_OBJ_KW(floppyio_flux_readinto_obj, 0, floppyio_flux_readinto
 //|         def ns_to_count(ns, samplerate):
 //|             return round(ns * samplerate * 1e-9)
 //|
-//|      This means the following typical values are a good starting place for a 1.44MB floppy:
+//|     This means the following typical values are a good starting place for a 1.44MB floppy:
 //|
 //|     .. code-block:: py
 //|
@@ -118,6 +119,7 @@ MP_DEFINE_CONST_FUN_OBJ_KW(floppyio_flux_readinto_obj, 0, floppyio_flux_readinto
 //|     :return: The actual number of sectors read
 //|     """
 //|     ...
+//|
 //|
 static mp_obj_t floppyio_mfm_readinto(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_buffer, ARG_flux, ARG_t2_max, ARG_t3_max, ARG_validity, ARG_clear_validity };
@@ -135,7 +137,7 @@ static mp_obj_t floppyio_mfm_readinto(size_t n_args, const mp_obj_t *pos_args, m
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(args[ARG_buffer].u_obj, &bufinfo, MP_BUFFER_WRITE);
     if (bufinfo.len % 512 != 0) {
-        mp_raise_ValueError(MP_ERROR_TEXT("Buffer must be a multiple of 512 bytes"));
+        mp_raise_ValueError_varg(MP_ERROR_TEXT("Buffer must be a multiple of %d bytes"), 512);
     }
     size_t n_sectors = bufinfo.len / 512;
 

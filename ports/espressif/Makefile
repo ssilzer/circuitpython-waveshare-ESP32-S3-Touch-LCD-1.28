@@ -6,23 +6,6 @@
 
 include ../../py/circuitpy_mkenv.mk
 
-ifeq ($(IDF_TARGET),esp32c2)
-IDF_TARGET_ARCH = riscv
-CROSS_COMPILE = riscv32-esp-elf-
-else ifeq ($(IDF_TARGET),esp32c3)
-IDF_TARGET_ARCH = riscv
-CROSS_COMPILE = riscv32-esp-elf-
-else ifeq ($(IDF_TARGET),esp32c6)
-IDF_TARGET_ARCH = riscv
-CROSS_COMPILE = riscv32-esp-elf-
-else ifeq ($(IDF_TARGET),esp32h2)
-IDF_TARGET_ARCH = riscv
-CROSS_COMPILE = riscv32-esp-elf-
-else
-IDF_TARGET_ARCH = xtensa
-CROSS_COMPILE = xtensa-$(IDF_TARGET)-elf-
-endif
-
 ifeq ($(IDF_TARGET),esp32s3)
 BT_IDF_TARGET = esp32c3
 else
@@ -62,7 +45,6 @@ INC += \
 	-isystem esp-idf/components/bt/host/nimble/nimble/porting/nimble/include \
 	-isystem esp-idf/components/bt/host/nimble/nimble/porting/npl/freertos/include \
 	-isystem esp-idf/components/bt/host/nimble/port/include \
-	-isystem esp-idf/components/driver/i2c/include \
 	-isystem esp-idf/components/driver/touch_sensor/include \
 	-isystem esp-idf/components/driver/touch_sensor/$(IDF_TARGET)/include \
 	-isystem esp-idf/components/driver/twai/include \
@@ -84,6 +66,8 @@ INC += \
 	-isystem esp-idf/components/esp_driver_ledc/include \
 	-isystem esp-idf/components/esp_driver_pcnt/include \
 	-isystem esp-idf/components/esp_driver_rmt/include \
+	-isystem esp-idf/components/esp_driver_sdio/include \
+	-isystem esp-idf/components/esp_driver_sdmmc/include \
 	-isystem esp-idf/components/esp_driver_spi/include \
 	-isystem esp-idf/components/esp_driver_tsens/include \
 	-isystem esp-idf/components/esp_driver_uart/include \
@@ -91,6 +75,8 @@ INC += \
 	-isystem esp-idf/components/esp_hw_support/dma/include \
 	-isystem esp-idf/components/esp_hw_support/include \
 	-isystem esp-idf/components/esp_hw_support/include/soc \
+	-isystem esp-idf/components/esp_hw_support/port/$(IDF_TARGET)/private_include \
+	-isystem esp-idf/components/esp_mm/include \
 	-isystem esp-idf/components/esp_netif/include \
 	-isystem esp-idf/components/esp_partition/include \
 	-isystem esp-idf/components/esp_pm/include \
@@ -125,6 +111,8 @@ INC += \
 	-isystem esp-idf/components/mbedtls/port/include \
 	-isystem esp-idf/components/newlib/platform_include \
 	-isystem esp-idf/components/nvs_flash/include \
+	-isystem esp-idf/components/sdio/include \
+	-isystem esp-idf/components/sdmmc/include \
 	-isystem esp-idf/components/soc/include \
 	-isystem esp-idf/components/soc/$(IDF_TARGET)/include \
 	-isystem esp-idf/components/spi_flash/include \
@@ -155,7 +143,6 @@ CFLAGS += -DSTACK_CANARY_VALUE=0xa5a5a5a5
 # one must provide `-u` arguments to state the symbols are missing. This would
 # normally happen implicitly by another function calling to these.
 REGISTRATION_FUNCTIONS = \
-	-u newlib_include_pthread_impl \
 	-u ld_include_highint_hdl \
 	-u __cxx_fatal_exception \
 	-u esp_app_desc \
@@ -169,8 +156,10 @@ REGISTRATION_FUNCTIONS = \
 	-u newlib_include_syscalls_impl \
 	-u newlib_include_pthread_impl \
 	-u newlib_include_assert_impl \
-	-u newlib_include_getentropy_impl \
-	-u newlib_include_init_funcs
+	-u newlib_include_init_funcs \
+	-u include_esp_phy_override \
+	-u vfs_include_syscalls_impl
+
 
 #Debugging/Optimization
 ifeq ($(DEBUG), 1)
@@ -214,7 +203,13 @@ ifeq ($(IDF_TARGET_ARCH),xtensa)
 
 CFLAGS += -mlongcalls -isystem esp-idf/components/xtensa/deprecated_include/ -Wno-error=cpp
 else ifeq ($(IDF_TARGET_ARCH),riscv)
+
+ifeq ($(IDF_TARGET),esp32p4)
+CFLAGS += -march=rv32imafc_zicsr_zifencei_xesppie -mabi=ilp32f
+else
 CFLAGS += -march=rv32imac_zicsr_zifencei
+endif
+
 LDFLAGS += \
 	-Lesp-idf/components/riscv/ld \
 	-Trom.api.ld
@@ -251,6 +246,7 @@ CHIP_COMPONENTS = \
 
 else ifeq ($(IDF_TARGET),esp32c2)
 LDFLAGS += \
+	-Tesp32c2.rom.ble.ld \
 	-Tesp32c2.rom.heap.ld \
 	-Tesp32c2.rom.newlib.ld \
 	-Tesp32c2.rom.version.ld \
@@ -267,7 +263,8 @@ LDFLAGS += \
 	-Tesp32c3.rom.newlib.ld \
 	-Tesp32c3.rom.newlib-time.ld \
 	-Tesp32c3.rom.version.ld \
-	-Tesp32c3.rom.eco3.ld
+	-Tesp32c3.rom.eco3.ld \
+	-Tesp32c3.rom.bt_funcs.ld
 
 CHIP_COMPONENTS = \
 	esp_driver_tsens
@@ -282,6 +279,16 @@ LDFLAGS += \
 	-Tesp32c6.rom.heap.ld \
 	-Tesp32c6.rom.systimer.ld \
 	-Tesp32c6.rom.wdt.ld
+
+
+CHIP_COMPONENTS = \
+	esp_driver_tsens
+
+else ifeq ($(IDF_TARGET),esp32p4)
+LDFLAGS += \
+	-Tesp32p4.rom.newlib.ld \
+	-Tesp32p4.rom.systimer.ld \
+	-Tesp32p4.rom.wdt.ld
 
 
 CHIP_COMPONENTS = \
@@ -311,10 +318,10 @@ CHIP_COMPONENTS = \
 else ifeq ($(IDF_TARGET),esp32s3)
 LDFLAGS += \
 	-Tesp32s3.rom.newlib.ld \
-	-Tesp32s3.rom.newlib-time.ld \
 	-Tesp32s3.rom.version.ld \
 	-Tesp32s3.rom.systimer.ld \
-	-Tesp32s3.rom.wdt.ld
+	-Tesp32s3.rom.wdt.ld \
+	-Tesp32s3.rom.bt_funcs.ld
 
 CHIP_COMPONENTS = \
 	esp_driver_tsens
@@ -338,6 +345,8 @@ else ifeq ($(IDF_TARGET),esp32c3)
 CFLAGS += -DCFG_TUSB_MCU=OPT_MCU_ESP32C3
 else ifeq ($(IDF_TARGET),esp32c6)
 CFLAGS += -DCFG_TUSB_MCU=OPT_MCU_ESP32C6
+else ifeq ($(IDF_TARGET),esp32p4)
+CFLAGS += -DCFG_TUSB_MCU=OPT_MCU_ESP32P4
 else ifeq ($(IDF_TARGET),esp32h2)
 CFLAGS += -DCFG_TUSB_MCU=OPT_MCU_ESP32H2
 else ifeq ($(IDF_TARGET),esp32s2)
@@ -371,7 +380,6 @@ SRC_C += \
 	boards/$(BOARD)/board.c \
 	boards/$(BOARD)/pins.c \
 	shared/netutils/netutils.c \
-	peripherals/i2c.c \
 	peripherals/$(IDF_TARGET)/pins.c
 
 ifeq ($(CIRCUITPY_SSL),1)
@@ -389,14 +397,16 @@ SRC_C += peripherals/touch.c
 endif
 
 ifneq ($(CIRCUITPY_USB_DEVICE),0)
-SRC_C += lib/tinyusb/src/portable/espressif/esp32sx/dcd_esp32sx.c
+SRC_C += \
+	lib/tinyusb/src/portable/synopsys/dwc2/dcd_dwc2.c \
+	lib/tinyusb/src/portable/synopsys/dwc2/dwc2_common.c
 endif
 
 ifneq ($(CIRCUITPY_AUDIOBUSIO),0)
 CHIP_COMPONENTS += esp_driver_i2s
 endif
 
-ifneq ($(CIRCUITPY_BLEIO),0)
+ifneq ($(CIRCUITPY_BLEIO_NATIVE),0)
 SRC_C += common-hal/_bleio/ble_events.c
 endif
 
@@ -461,24 +471,13 @@ ifneq ($(CIRCUITPY_FREQUENCYIO),0)
 CHIP_COMPONENTS += esp_driver_pcnt
 endif
 
-SRC_COMMON_HAL_EXPANDED = \
-	$(addprefix shared-bindings/, $(SRC_COMMON_HAL)) \
-	$(addprefix shared-bindings/, $(SRC_BINDINGS_ENUMS)) \
-	$(addprefix common-hal/, $(SRC_COMMON_HAL))
-
-SRC_SHARED_MODULE_EXPANDED = \
-	$(addprefix shared-bindings/, $(SRC_SHARED_MODULE)) \
-	$(addprefix shared-module/, $(SRC_SHARED_MODULE)) \
-	$(addprefix shared-module/, $(SRC_SHARED_MODULE_INTERNAL))
-
 ifneq ($(FROZEN_MPY_DIR),)
 FROZEN_MPY_PY_FILES := $(shell find -L $(FROZEN_MPY_DIR) -type f -name '*.py')
 FROZEN_MPY_MPY_FILES := $(addprefix $(BUILD)/,$(FROZEN_MPY_PY_FILES:.py=.mpy))
 endif
 
 OBJ += $(PY_O) $(SUPERVISOR_O) $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
-OBJ += $(addprefix $(BUILD)/, $(SRC_COMMON_HAL_EXPANDED:.c=.o))
-OBJ += $(addprefix $(BUILD)/, $(SRC_SHARED_MODULE_EXPANDED:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(SRC_COMMON_HAL_SHARED_MODULE_EXPANDED:.c=.o))
 ifeq ($(INTERNAL_LIBM),1)
 OBJ += $(addprefix $(BUILD)/, $(SRC_LIBM:.c=.o))
 endif
@@ -491,7 +490,7 @@ $(filter $(PY_BUILD)/../extmod/vfs_fat_%.o, $(PY_O)): COPT += -Os
 $(BUILD)/lib/protomatter/src/core.o: CFLAGS += -DESP32
 
 # List of sources for qstr extraction
-SRC_QSTR += $(SRC_C) $(SRC_SUPERVISOR) $(SRC_MOD) $(SRC_COMMON_HAL_EXPANDED) $(SRC_SHARED_MODULE_EXPANDED) $(SRC_CIRCUITPY_COMMON)
+SRC_QSTR += $(SRC_C) $(SRC_SUPERVISOR) $(SRC_MOD) $(SRC_COMMON_HAL_SHARED_MODULE_EXPANDED) $(SRC_CIRCUITPY_COMMON)
 
 # IDF build commands
 IDF_PATH = $(realpath ./esp-idf)
@@ -537,7 +536,7 @@ else
 endif
 
 SDKCONFIGS := esp-idf-config/sdkconfig.defaults;$(DEBUG_SDKCONFIG);$(FLASH_SIZE_SDKCONFIG);$(FLASH_MODE_SDKCONFIG);$(FLASH_SPEED_SDKCONFIG);$(PSRAM_SDKCONFIG);$(PSRAM_SIZE_SDKCONFIG);$(PSRAM_MODE_SDKCONFIG);$(PSRAM_SPEED_SDKCONFIG);$(TARGET_SDKCONFIG);boards/$(BOARD)/sdkconfig
-ifneq ($(CIRCUITPY_BLEIO),0)
+ifneq ($(CIRCUITPY_BLEIO_NATIVE),0)
 	SDKCONFIGS := esp-idf-config/sdkconfig-ble.defaults;$(SDKCONFIGS)
 endif
 # create the config headers
@@ -578,7 +577,10 @@ update-board-sdkconfig: $(BUILD)/esp-idf/config/sdkconfig.h
 	python tools/update_sdkconfig.py --board=$(BOARD) --debug=$(DEBUG)
 
 BINARY_WIFI_BLOBS = libcore.a libespnow.a libnet80211.a libpp.a libsmartconfig.a
-BINARY_BLOBS = esp-idf/components/esp_phy/lib/$(IDF_TARGET)/libphy.a
+
+ifneq ($(IDF_TARGET),esp32p4)
+	BINARY_BLOBS = esp-idf/components/esp_phy/lib/$(IDF_TARGET)/libphy.a
+endif
 ifneq ($(CIRCUITPY_WIFI),0)
 	BINARY_BLOBS += esp-idf/components/esp_coex/lib/$(IDF_TARGET)/libcoexist.a $(addprefix esp-idf/components/esp_wifi/lib/$(IDF_TARGET)/, $(BINARY_WIFI_BLOBS))
 	ifneq ($(IDF_TARGET),esp32c2)
@@ -590,11 +592,11 @@ ifeq ($(IDF_TARGET),esp32)
 BINARY_BLOBS += esp-idf/components/esp_phy/lib/$(IDF_TARGET)/librtc.a
 endif
 
-ESP_IDF_COMPONENTS_LINK = $(IDF_TARGET_ARCH) $(CHIP_COMPONENTS) app_update bootloader_support driver esp_driver_gpio esp_driver_gptimer esp_driver_ledc esp_driver_spi esp_driver_uart efuse esp_adc esp_app_format esp_common esp_event esp_hw_support esp_mm esp_partition esp_phy esp_pm esp_ringbuf esp_rom esp_system esp_timer freertos hal heap log newlib nvs_flash pthread soc spi_flash vfs esp_vfs_console
+ESP_IDF_COMPONENTS_LINK = $(IDF_TARGET_ARCH) $(CHIP_COMPONENTS) app_update bootloader_support driver esp_driver_gpio esp_driver_gptimer esp_driver_i2c esp_driver_ledc esp_driver_spi esp_driver_uart efuse esp_adc esp_app_format esp_common esp_event esp_hw_support esp_mm esp_partition esp_pm esp_ringbuf esp_rom esp_system esp_timer freertos hal heap log newlib nvs_flash pthread soc spi_flash vfs esp_vfs_console
 ifneq ($(CIRCUITPY_WIFI),0)
-	ESP_IDF_COMPONENTS_LINK += esp_coex esp_netif esp-tls esp_wifi lwip mbedtls mdns wpa_supplicant
+	ESP_IDF_COMPONENTS_LINK += esp_coex esp_netif esp-tls esp_wifi lwip mbedtls mdns wpa_supplicant esp_phy
 endif
-ifneq ($(CIRCUITPY_BLEIO),0)
+ifneq ($(CIRCUITPY_BLEIO_NATIVE),0)
 	BLE_IMPL_esp32 := esp32
 	BLE_IMPL_esp32s3 := esp32c3
 	BLE_IMPL_esp32c2 := libble
@@ -603,7 +605,7 @@ ifneq ($(CIRCUITPY_BLEIO),0)
 	BLE_IMPL_esp32h2 := libble
 	BLE_IMPL = $(BLE_IMPL_$(IDF_TARGET))
 
-	ESP_IDF_COMPONENTS_LINK += bt
+	ESP_IDF_COMPONENTS_LINK += bt esp_phy
 	ifeq ($(BLE_IMPL),esp32)
 		# BLE will hang the ESP32 and trigger an interrupt watchdog without this undefined symbol at
 		# link because a weak version of the interrupt that BLE uses will be linked incorrectly.
@@ -617,8 +619,12 @@ ifneq ($(CIRCUITPY_BLEIO),0)
 	endif
 
 	ifeq ($(BLE_IMPL),libble)
-	BINARY_BLOBS += esp-idf/components/esp_phy/lib/$(IDF_TARGET)/libbtbb.a \
-					esp-idf/components/bt/controller/lib_$(IDF_TARGET)/$(IDF_TARGET)-bt-lib/libble_app.a
+	BINARY_BLOBS += esp-idf/components/esp_phy/lib/$(IDF_TARGET)/libbtbb.a
+	ifeq ($(IDF_TARGET),esp32c6)
+		BINARY_BLOBS += esp-idf/components/bt/controller/lib_$(IDF_TARGET)/$(IDF_TARGET)-bt-lib/$(IDF_TARGET)/libble_app.a
+	else
+		BINARY_BLOBS += esp-idf/components/bt/controller/lib_$(IDF_TARGET)/$(IDF_TARGET)-bt-lib/libble_app.a
+	endif
 	endif
 endif
 ifneq ($(CIRCUITPY_ESPULP),0)
@@ -635,6 +641,9 @@ ifneq ($(CIRCUITPY_PARALLELDISPLAYBUS),0)
 endif
 ifneq ($(CIRCUITPY_USB_DEVICE),0)
 	ESP_IDF_COMPONENTS_LINK += usb
+endif
+ifneq ($(CIRCUITPY_SDIOIO),0)
+	ESP_IDF_COMPONENTS_LINK += sdmmc esp_driver_sdmmc
 endif
 
 ESP_IDF_COMPONENTS_EXPANDED = $(foreach component, $(ESP_IDF_COMPONENTS_LINK), $(BUILD)/esp-idf/esp-idf/$(component)/lib$(component).a)
@@ -665,6 +674,8 @@ else ifeq ($(IDF_TARGET),esp32c3)
 BOOTLOADER_OFFSET = 0x0
 else ifeq ($(IDF_TARGET),esp32c6)
 BOOTLOADER_OFFSET = 0x0
+else ifeq ($(IDF_TARGET),esp32p4)
+BOOTLOADER_OFFSET = 0x2000
 else ifeq ($(IDF_TARGET),esp32s3)
 BOOTLOADER_OFFSET = 0x0
 else ifeq ($(IDF_TARGET),esp32s2)
@@ -735,6 +746,7 @@ endif
 
 UF2_FAMILY_ID_esp32s2 = 0xbfdd4eee
 UF2_FAMILY_ID_esp32s3 = 0xc47e5767
+UF2_FAMILY_ID_esp32p4 = 0x540ddf62
 
 $(BUILD)/firmware.uf2: $(BUILD)/circuitpython-firmware.bin
 	$(STEPECHO) "Create $@"

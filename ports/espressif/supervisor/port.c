@@ -24,7 +24,6 @@
 #include "bindings/espulp/__init__.h"
 #include "common-hal/microcontroller/Pin.h"
 #include "common-hal/analogio/AnalogOut.h"
-#include "common-hal/busio/I2C.h"
 #include "common-hal/busio/SPI.h"
 #include "common-hal/busio/UART.h"
 #include "common-hal/dualbank/__init__.h"
@@ -40,11 +39,15 @@
 #include "shared-bindings/socketpool/__init__.h"
 #include "shared-module/os/__init__.h"
 
+#if CIRCUITPY_SDIOIO
+#include "common-hal/sdioio/SDCard.h"
+#endif
+
 #if CIRCUITPY_TOUCHIO_USE_NATIVE
 #include "peripherals/touch.h"
 #endif
 
-#if CIRCUITPY_BLEIO
+#if CIRCUITPY_BLEIO_NATIVE
 #include "shared-bindings/_bleio/__init__.h"
 #endif
 
@@ -57,9 +60,18 @@
 #include "soc/lp_aon_reg.h"
 #define CP_SAVED_WORD_REGISTER LP_AON_STORE0_REG
 #else
+#ifdef CONFIG_IDF_TARGET_ESP32P4
+#include "soc/lp_system_reg.h"
+#define CP_SAVED_WORD_REGISTER LP_SYSTEM_REG_LP_STORE15_REG
+
+#else
+// To-do idf v5.0: remove following include
 #include "soc/rtc_cntl_reg.h"
 #define CP_SAVED_WORD_REGISTER RTC_CNTL_STORE0_REG
 #endif
+
+#endif
+
 #include "soc/spi_pins.h"
 
 #include "bootloader_flash_config.h"
@@ -238,20 +250,6 @@ safe_mode_t port_init(void) {
     common_hal_never_reset_pin(&pin_GPIOn_EXPAND(CONFIG_CONSOLE_UART_RX_GPIO));
     #endif
 
-    #if DEBUG
-    // debug UART
-    #if defined(CONFIG_IDF_TARGET_ESP32C3)
-    common_hal_never_reset_pin(&pin_GPIO20);
-    common_hal_never_reset_pin(&pin_GPIO21);
-    #elif defined(CONFIG_IDF_TARGET_ESP32C6)
-    common_hal_never_reset_pin(&pin_GPIO16);
-    common_hal_never_reset_pin(&pin_GPIO17);
-    #elif defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
-    common_hal_never_reset_pin(&pin_GPIO43);
-    common_hal_never_reset_pin(&pin_GPIO44);
-    #endif
-    #endif
-
     #ifndef ENABLE_JTAG
     #define ENABLE_JTAG (0)
     #endif
@@ -269,6 +267,11 @@ safe_mode_t port_init(void) {
     common_hal_never_reset_pin(&pin_GPIO40);
     common_hal_never_reset_pin(&pin_GPIO41);
     common_hal_never_reset_pin(&pin_GPIO42);
+    #elif defined(CONFIG_IDF_TARGET_ESP32P4)
+    common_hal_never_reset_pin(&pin_GPIO3);
+    common_hal_never_reset_pin(&pin_GPIO4);
+    common_hal_never_reset_pin(&pin_GPIO5);
+    common_hal_never_reset_pin(&pin_GPIO6);
     #endif
     #endif
 
@@ -287,6 +290,10 @@ safe_mode_t port_init(void) {
         case ESP_RST_WDT:
         default:
             break;
+    }
+
+    if (board_requests_safe_mode()) {
+        return SAFE_MODE_USER;
     }
 
     return SAFE_MODE_NONE;
@@ -317,8 +324,12 @@ void port_free(void *ptr) {
     heap_caps_free(ptr);
 }
 
-void *port_realloc(void *ptr, size_t size) {
-    return heap_caps_realloc(ptr, size, MALLOC_CAP_8BIT);
+void *port_realloc(void *ptr, size_t size, bool dma_capable) {
+    size_t caps = MALLOC_CAP_8BIT;
+    if (dma_capable) {
+        caps |= MALLOC_CAP_DMA;
+    }
+    return heap_caps_realloc(ptr, size, caps);
 }
 
 size_t port_heap_get_largest_free_size(void) {
@@ -343,9 +354,12 @@ void reset_port(void) {
     #endif
 
     #if CIRCUITPY_BUSIO
-    i2c_reset();
     spi_reset();
     uart_reset();
+    #endif
+
+    #if CIRCUITPY_SDIOIO
+    sdioio_reset();
     #endif
 
     #if CIRCUITPY_DUALBANK
@@ -483,11 +497,17 @@ void port_idle_until_interrupt(void) {
     }
 }
 
-void port_post_boot_py(bool heap_valid) {
-    if (!heap_valid && filesystem_present()) {
+#if CIRCUITPY_WIFI
+void port_boot_info(void) {
+    uint8_t mac[6];
+    esp_wifi_get_mac(ESP_IF_WIFI_STA, mac);
+    mp_printf(&mp_plat_print, "MAC");
+    for (int i = 0; i < 6; i++) {
+        mp_printf(&mp_plat_print, ":%02X", mac[i]);
     }
+    mp_printf(&mp_plat_print, "\n");
 }
-
+#endif
 
 // Wrap main in app_main that the IDF expects.
 extern void main(void);
