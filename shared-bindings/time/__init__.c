@@ -172,7 +172,7 @@ MP_DEFINE_CONST_FUN_OBJ_0(time_not_implemented_obj, time_not_implemented);
 #endif
 
 #if MICROPY_LONGINT_IMPL != MICROPY_LONGINT_IMPL_NONE
-NORETURN mp_obj_t MP_WEAK rtc_get_time_source_time(void) {
+mp_obj_t MP_WEAK rtc_get_time_source_time(void) {
     mp_raise_RuntimeError(MP_ERROR_TEXT("RTC is not supported on this board"));
 }
 

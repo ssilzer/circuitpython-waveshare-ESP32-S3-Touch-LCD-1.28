@@ -106,6 +106,10 @@ msgstr ""
 msgid "%q failure: %d"
 msgstr "%q fallito: %d"
 
+#: shared-module/audiodelays/MultiTapDelay.c
+msgid "%q in %q must be of type %q or %q, not %q"
+msgstr ""
+
 #: py/argcheck.c shared-module/audiofilters/Filter.c
 msgid "%q in %q must be of type %q, not %q"
 msgstr ""
@@ -228,7 +232,8 @@ msgid "%q must be of type %q, %q, or %q, not %q"
 msgstr ""
 
 #: py/argcheck.c py/runtime.c shared-bindings/bitmapfilter/__init__.c
-#: shared-module/synthio/Note.c shared-module/synthio/__init__.c
+#: shared-module/audiodelays/MultiTapDelay.c shared-module/synthio/Note.c
+#: shared-module/synthio/__init__.c
 msgid "%q must be of type %q, not %q"
 msgstr ""
 
@@ -2604,8 +2609,14 @@ msgid "bits must be 32 or less"
 msgstr ""
 
 #: shared-bindings/audiodelays/Chorus.c shared-bindings/audiodelays/Echo.c
+#: shared-bindings/audiodelays/MultiTapDelay.c
 #: shared-bindings/audiodelays/PitchShift.c
 #: shared-bindings/audiofilters/Distortion.c
+#: shared-bindings/audiodelays/Reverb.c
+msgid "bits_per_sample must be 16"
+msgstr ""
+
+#: shared-bindings/audiodelays/Echo.c shared-bindings/audiofilters/Distortion.c
 #: shared-bindings/audiofilters/Filter.c shared-bindings/audiomixer/Mixer.c
 #, fuzzy
 msgid "bits_per_sample must be 8 or 16"
@@ -4038,6 +4049,10 @@ msgstr ""
 
 #: py/objstr.c
 msgid "rsplit(None,n)"
+msgstr ""
+
+#: shared-bindings/audiodelays/Reverb.c
+msgid "samples_signed must be true"
 msgstr ""
 
 #: ports/atmel-samd/common-hal/audiobusio/PDMIn.c

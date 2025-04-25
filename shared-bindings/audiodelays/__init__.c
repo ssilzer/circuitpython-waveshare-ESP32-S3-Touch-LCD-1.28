@@ -13,6 +13,7 @@
 #include "shared-bindings/audiodelays/Echo.h"
 #include "shared-bindings/audiodelays/Chorus.h"
 #include "shared-bindings/audiodelays/PitchShift.h"
+#include "shared-bindings/audiodelays/MultiTapDelay.h"
 
 //| """Support for audio delay effects
 //|
@@ -25,6 +26,7 @@ static const mp_rom_map_elem_t audiodelays_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_Echo), MP_ROM_PTR(&audiodelays_echo_type) },
     { MP_ROM_QSTR(MP_QSTR_Chorus), MP_ROM_PTR(&audiodelays_chorus_type) },
     { MP_ROM_QSTR(MP_QSTR_PitchShift), MP_ROM_PTR(&audiodelays_pitch_shift_type) },
+    { MP_ROM_QSTR(MP_QSTR_MultiTapDelay), MP_ROM_PTR(&audiodelays_multi_tap_delay_type) },
 };
 
 static MP_DEFINE_CONST_DICT(audiodelays_module_globals, audiodelays_module_globals_table);

@@ -51,6 +51,8 @@
 // See https://github.com/micropython/micropython/pull/11353
 #define MICROPY_NLR_THUMB_USE_LONG_JUMP (1)
 
+// Don't store qstr hashes and do string compares instead.
+#define MICROPY_QSTR_BYTES_IN_HASH       (0)
 
 #endif // SAMD21
 

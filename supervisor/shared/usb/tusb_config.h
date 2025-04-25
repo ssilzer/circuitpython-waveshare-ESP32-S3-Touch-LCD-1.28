@@ -173,7 +173,7 @@ extern "C" {
 
 // Size of buffer to hold descriptors and other data used for enumeration
 #ifndef CFG_TUH_ENUMERATION_BUFSIZE
-#define CFG_TUH_ENUMERATION_BUFSIZE 256
+#define CFG_TUH_ENUMERATION_BUFSIZE 512
 #endif
 
 #if CIRCUITPY_USB_KEYBOARD_WORKFLOW

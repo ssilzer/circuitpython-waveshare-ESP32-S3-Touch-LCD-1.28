@@ -137,6 +137,9 @@ endif
 ifeq ($(CIRCUITPY_AUDIOFILTERS),1)
 SRC_PATTERNS += audiofilters/%
 endif
+ifeq ($(CIRCUITPY_AUDIOFREEVERB),1)
+SRC_PATTERNS += audiofreeverb/%
+endif
 ifeq ($(CIRCUITPY_AUDIOMIXER),1)
 SRC_PATTERNS += audiomixer/%
 endif
@@ -617,6 +620,7 @@ $(filter $(SRC_PATTERNS), \
 	supervisor/StatusBar.c \
 	wifi/AuthMode.c \
 	wifi/Packet.c \
+	wifi/PowerManagement.c \
 )
 
 ifeq ($(CIRCUITPY_BLEIO_HCI),1)
@@ -666,10 +670,13 @@ SRC_SHARED_MODULE_ALL = \
 	audiodelays/Echo.c \
 	audiodelays/Chorus.c \
 	audiodelays/PitchShift.c \
+	audiodelays/MultiTapDelay.c \
 	audiodelays/__init__.c \
 	audiofilters/Distortion.c \
 	audiofilters/Filter.c \
 	audiofilters/__init__.c \
+	audiofreeverb/__init__.c \
+	audiofreeverb/Freeverb.c \
 	audioio/__init__.c \
 	audiomixer/Mixer.c \
 	audiomixer/MixerVoice.c \
