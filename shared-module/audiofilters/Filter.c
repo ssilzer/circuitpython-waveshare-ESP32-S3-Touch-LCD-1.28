@@ -31,16 +31,16 @@ void common_hal_audiofilters_filter_construct(audiofilters_filter_obj_t *self,
     // Samples are set sequentially. For stereo audio they are passed L/R/L/R/...
     self->buffer_len = buffer_size; // in bytes
 
-    self->buffer[0] = m_malloc(self->buffer_len);
+    self->buffer[0] = m_malloc_without_collect(self->buffer_len);
     memset(self->buffer[0], 0, self->buffer_len);
 
-    self->buffer[1] = m_malloc(self->buffer_len);
+    self->buffer[1] = m_malloc_without_collect(self->buffer_len);
     memset(self->buffer[1], 0, self->buffer_len);
 
     self->last_buf_idx = 1; // Which buffer to use first, toggle between 0 and 1
 
     // This buffer will be used to process samples through the biquad filter
-    self->filter_buffer = m_malloc(SYNTHIO_MAX_DUR * sizeof(int32_t));
+    self->filter_buffer = m_malloc_without_collect(SYNTHIO_MAX_DUR * sizeof(int32_t));
     memset(self->filter_buffer, 0, SYNTHIO_MAX_DUR * sizeof(int32_t));
 
     // Initialize other values most effects will need.
@@ -143,7 +143,7 @@ bool common_hal_audiofilters_filter_get_playing(audiofilters_filter_obj_t *self)
 }
 
 void common_hal_audiofilters_filter_play(audiofilters_filter_obj_t *self, mp_obj_t sample, bool loop) {
-    audiosample_must_match(&self->base, sample);
+    audiosample_must_match(&self->base, sample, false);
 
     self->sample = sample;
     self->loop = loop;

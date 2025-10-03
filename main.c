@@ -30,6 +30,7 @@
 #include "supervisor/cpu.h"
 #include "supervisor/filesystem.h"
 #include "supervisor/port.h"
+#include "supervisor/shared/cpu_regs.h"
 #include "supervisor/shared/reload.h"
 #include "supervisor/shared/safe_mode.h"
 #include "supervisor/shared/serial.h"
@@ -203,18 +204,29 @@ static void start_mp(safe_mode_t safe_mode) {
     mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR__slash_lib));
 
     mp_obj_list_init((mp_obj_list_t *)mp_sys_argv, 0);
+
+    // Always return to root
+    common_hal_os_chdir("/");
 }
 
 static void stop_mp(void) {
     #if MICROPY_VFS
-    mp_vfs_mount_t *vfs = MP_STATE_VM(vfs_mount_table);
 
     // Unmount all heap allocated vfs mounts.
-    while (gc_nbytes(vfs) > 0) {
+    mp_vfs_mount_t *vfs = MP_STATE_VM(vfs_mount_table);
+    do {
+        if (gc_ptr_on_heap(vfs)) {
+            // mp_vfs_umount will splice out an unmounted vfs from the vfs_mount_table linked list.
+            mp_vfs_umount(vfs->obj);
+            // Start over at the beginning of the list since the first entry may have been removed.
+            vfs = MP_STATE_VM(vfs_mount_table);
+            continue;
+        }
         vfs = vfs->next;
-    }
-    MP_STATE_VM(vfs_mount_table) = vfs;
+    } while (vfs != NULL);
+
     // The last vfs is CIRCUITPY and the root directory.
+    vfs = MP_STATE_VM(vfs_mount_table);
     while (vfs->next != NULL) {
         vfs = vfs->next;
     }
@@ -457,8 +469,6 @@ static bool __attribute__((noinline)) run_code_py(safe_mode_t safe_mode, bool *s
         usb_setup_with_vm();
         #endif
 
-        // Always return to root before trying to run files.
-        common_hal_os_chdir("/");
         // Check if a different run file has been allocated
         if (next_code_configuration != NULL) {
             next_code_configuration->options &= ~SUPERVISOR_NEXT_CODE_OPT_NEWLY_SET;
@@ -580,8 +590,8 @@ static bool __attribute__((noinline)) run_code_py(safe_mode_t safe_mode, bool *s
     size_t total_time = blink_time + LED_SLEEP_TIME_MS;
     #endif
 
-    // This loop is waits after code completes. It waits for fake sleeps to
-    // finish, user input or autoreloads.
+    // This loop is run after code completes. It waits for fake sleeps to
+    // finish, waits for user input, or waits for an autoreload.
     #if CIRCUITPY_ALARM
     bool fake_sleeping = false;
     #endif
@@ -1134,8 +1144,13 @@ int __attribute__((used)) main(void) {
 void gc_collect(void) {
     gc_collect_start();
 
-    mp_uint_t regs[10];
+    // Load register values onto the stack. They get collected below with the rest of the stack.
+    size_t regs[SAVED_REGISTER_COUNT];
     mp_uint_t sp = cpu_get_regs_and_sp(regs);
+
+    // This naively collects all object references from an approximate stack
+    // range.
+    gc_collect_root((void **)sp, ((mp_uint_t)port_stack_get_top() - sp) / sizeof(mp_uint_t));
 
     // This collects root pointers from the VFS mount table. Some of them may
     // have lost their references in the VM even though they are mounted.
@@ -1169,14 +1184,7 @@ void gc_collect(void) {
     common_hal_wifi_gc_collect();
     #endif
 
-    // This naively collects all object references from an approximate stack
-    // range.
-    gc_collect_root((void **)sp, ((mp_uint_t)port_stack_get_top() - sp) / sizeof(mp_uint_t));
     gc_collect_end();
-}
-
-// Ports may provide an implementation of this function if it is needed
-MP_WEAK void port_gc_collect() {
 }
 
 size_t gc_get_max_new_split(void) {
